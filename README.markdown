@@ -1,5 +1,118 @@
-NVTOP
-=====
+# nvtop-spark
+
+A maintained fork of [Syllo/nvtop](https://github.com/Syllo/nvtop), focused on
+NVIDIA DGX Spark / GB10 memory reporting and a compact memory-bar display.
+This is a community fork, **not NVIDIA-official software**. NVTOP's upstream
+history, contributors and licensing are retained; the original documentation
+continues below.
+
+## Spark changes and provenance
+
+This fork starts at upstream commit
+[`71094a9f7dfbfe7cbe9faebfdf055e580a034283`](https://github.com/Syllo/nvtop/commit/71094a9f7dfbfe7cbe9faebfdf055e580a034283),
+a later baseline than the **3.3.2 release**. The version command still reports
+`3.3.2`; use `git rev-parse HEAD` to identify this fork's actual revision.
+
+The shared-memory implementation is upstream work, not newly invented here:
+
+- [Santosh Bhavani's unified-memory contribution, PR #411](https://github.com/Syllo/nvtop/pull/411), included in the 3.3.0 release.
+- [Billions of Yuan (`redyuan43`), PR #466](https://github.com/Syllo/nvtop/pull/466), including the NVIDIA UMA fallback and correction to GPU-process memory summation.
+- [Maxime Schmitt's subsequent generic process-accounting integration](https://github.com/Syllo/nvtop/commit/5d164b8dd631931486b38754aaf5bc29da1bc6ff), included in our pinned baseline.
+
+On top of that baseline, this fork carries two small local changes, developed
+and validated on DGX Spark:
+
+1. **NVML memory-info v2 compatibility:** encode both structure-version fields
+   as `sizeof(struct) | (2U << 24)` rather than plain `2`. On driver 580.178.04,
+   the original call failed before the shared-memory fallback could be selected.
+   The corrected call allows upstream's UMA detection/accounting to work.
+2. **Compact memory labels:** show `52.8/121.7Gi` rather than
+   `52.762Gi/121.688Gi`, with one decimal place and one trailing unit. The
+   unknown-used label is similarly compact. This is presentation only; the
+   underlying byte counts and bar percentages are unchanged.
+
+These local changes were not imported from a third-party nvtop fork or an NVML
+preload shim. The source is Syllo/nvtop plus the changes above. See
+[COPYING](COPYING) for the retained upstream license.
+
+## What the GB10 memory values mean
+
+GB10 shares RAM between the CPU and GPU; it has no separate VRAM pool.
+
+| Value | Source |
+|---|---|
+| Total | Linux `/proc/meminfo` `MemTotal` (about 121.7 GiB on the tested Spark). |
+| Used | Sum of valid NVML-reported GPU-process allocations, using upstream nvtop's process accounting. |
+| Free (snapshot output) | Linux `MemAvailable`, not simply total minus GPU-used. |
+
+CPU allocations are not part of the GPU-used sum, so used plus free need not
+sum to total. These are reported allocations, not an exact physical-memory
+ownership measurement. Unreported allocations cannot be counted. The patch does
+not make `nvidia-smi`'s device-wide framebuffer query supported.
+
+## Build and install on DGX Spark
+
+Tested on NVIDIA DGX Spark OS 7.6.0 / Ubuntu 24.04 ARM64 with GCC 13.3,
+CMake 3.28 and NVIDIA driver 580.178.04. Use the existing NVIDIA driver; no driver
+replacement, CUDA toolkit, preload shim or root privileges are needed to run it.
+The preset requires CMake 3.21 or newer and selects NVIDIA-only Release settings
+through upstream's existing CMake options.
+
+```sh
+sudo apt-get install build-essential cmake git libncurses-dev libudev-dev
+git clone https://github.com/kingsleyfaulkner/nvtop-spark.git
+cd nvtop-spark
+cmake --preset spark
+cmake --build --preset spark
+./build/spark/src/nvtop
+```
+
+For a system-wide installation, after testing the build:
+
+```sh
+sudo cmake --install build/spark
+hash -r
+nvtop
+```
+
+This uses `/usr/local` and installs `nvtop`, its manpage and desktop metadata.
+It does not remove the distribution's package, but `/usr/local/bin` normally
+precedes `/usr/bin` on PATH. It **replaces an existing local installation** at
+the same prefix; back up any private build you want to keep first.
+To install for just your account instead, use
+`cmake --install build/spark --prefix "$HOME/.local"` and ensure
+`$HOME/.local/bin` is on PATH. Do not grant the binary setuid or extra capabilities.
+
+The preset does not run a full test suite. Focused validation includes a live
+GB10 JSON snapshot (`./build/spark/src/nvtop -s`), checking GPU-used against the
+process-allocation sum, and checking the compact label in an interactive terminal.
+
+### Update or uninstall
+
+From an unchanged checkout, update this fork's `spark` branch and rebuild:
+
+```sh
+git pull --ff-only
+cmake --preset spark
+cmake --build --preset spark
+sudo cmake --install build/spark
+```
+
+Review `build/spark/install_manifest.txt` to see the exact installed files.
+To remove a system-wide installation made by this build, after reviewing that
+manifest:
+
+```sh
+sudo xargs -d '\n' rm -- < build/spark/install_manifest.txt
+hash -r
+```
+
+For a user-prefix installation, omit `sudo`. Keep the manifest from the relevant
+installation; it records the chosen prefix. Distribution packages are unaffected.
+
+---
+
+# Upstream NVTOP documentation
 
 What is NVTOP?
 --------------

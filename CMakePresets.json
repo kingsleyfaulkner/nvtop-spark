@@ -1,0 +1,37 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": { "major": 3, "minor": 21, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "spark",
+      "displayName": "NVIDIA DGX Spark (Release)",
+      "description": "NVIDIA-only build using the upstream CMake options",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/spark",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_INSTALL_PREFIX": "/usr/local",
+        "BUILD_TESTING": "OFF",
+        "NVIDIA_SUPPORT": "ON",
+        "AMDGPU_SUPPORT": "OFF",
+        "RADEON_SUPPORT": "OFF",
+        "INTEL_SUPPORT": "OFF",
+        "MSM_SUPPORT": "OFF",
+        "APPLE_SUPPORT": "OFF",
+        "PANFROST_SUPPORT": "OFF",
+        "PANTHOR_SUPPORT": "OFF",
+        "ASCEND_SUPPORT": "OFF",
+        "V3D_SUPPORT": "OFF",
+        "TPU_SUPPORT": "OFF",
+        "ROCKCHIP_SUPPORT": "OFF",
+        "METAX_SUPPORT": "OFF",
+        "ENFLAME_SUPPORT": "OFF",
+        "TENSTORRENT_SUPPORT": "OFF",
+        "IXML_SUPPORT": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "spark", "configurePreset": "spark", "jobs": 4 }
+  ]
+}
